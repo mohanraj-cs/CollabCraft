@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+
+<configuration>
+    <!-- Turn on camel case matching -->
+    <settings>
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
+        <setting name="logImpl" value="STDOUT_LOGGING"/>
+    </settings>
+    <!-- Alias -->
+    <typeAliases>
+        <!--The default alias is: the unqualified class name with the first letter of javabean in lowercase as its alias -->
+        <package name="com.CollabCraft.entity" />
+    </typeAliases>
+    <plugins>
+        <plugin interceptor="tk.mybatis.mapper.mapperhelper.MapperInterceptor">
+            <!--Primary key auto-increment write-back method, default value MYSQL, please see the document HSQLDB for detailed instructions-->
+            <property name="IDENTITY" value="MYSQL"/>
+
+            <!--There are 3 optional parameters in total, corresponding to 0, 1, 2, which are SequenceName, ColumnName, and PropertyName -->
+            <property name="seqFormat" value="{0}.nextval"/>
+
+            <!--General Mapper interface, multiple general interfaces are separated by commas-->
+            <property name="mappers" value="tk.mybatis.mapper.common.Mapper"/>
+        </plugin>
+        <!-- Custom paging plug-in -->
+        <!-- <plugin interceptor="wang.dreamland.www.common.PageHelper"></plugin>-->
+
+    </plugins>
+</configuration>

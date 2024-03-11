@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context" xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+                         http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+                         http://www.springframework.org/schema/context
+                         http://www.springframework.org/schema/context/spring-context-3.1.xsd
+                         http://www.springframework.org/schema/tx
+                         http://www.springframework.org/schema/tx/spring-tx.xsd http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop. xsd">
+
+    <!-- Automatic scanning -->
+    <context:component-scan base-package="com.CollabCraft.dao"/>
+    <context:component-scan base-package="com.CollabCraft.service"/>
+
+    <!--Second method: Load multiple properties files-->
+    <bean id="configProperties" class="org.springframework.beans.factory.config.PropertiesFactoryBean">
+        <property name="locations">
+            <list>
+                <value>classpath:jdbc.properties</value>
+                <value>classpath:mail.properties</value>
+                <value>classpath:redis.properties</value>
+            </list>
+        </property>
+        <property name="fileEncoding" value="UTF-8"/>
+    </bean>
+    <bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PreferencesPlaceholderConfigurer">
+        <property name="properties" ref="configProperties"/>
+    </bean>
+
+    <!-- Configure data source -->
+    <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource"
+          destroy-method="close">
+        <property name="driverClassName" value="${driverClasss}"/>
+        <property name="url" value="${jdbcUrl}"/>
+        <property name="username" value="${username}"/>
+        <property name="password" value="${password}"/>
+        <!-- Initial connection size -->
+        <property name="initialSize" value="${initialSize}"></property>
+        <!-- Maximum number of connection pools -->
+        <property name="maxActive" value="${maxActive}"></property>
+        <!-- Maximum idle connection pool -->
+        <property name="maxIdle" value="${maxIdle}"></property>
+        <!-- Minimum idle connection pool -->
+        <property name="minIdle" value="${minIdle}"></property>
+        <!-- Get the maximum waiting time for the connection -->
+        <property name="maxWait" value="${maxWait}"></property>
+    </bean>
+
+    <!-- Mybatis and spring are perfectly integrated, no configuration mapping file for mybatis is required -->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"/>
+        <!-- Configure the core configuration file of Mybatis -->
+        <property name="configLocation" value="classpath:mybatis-config.xml" />
+        <!-- Automatically scan mapping.xml file -->
+        <property name="mapperLocations" value="classpath:com.CollabCraft.dao/*.xml"></property>
+    </bean>
+
+    <!-- The package name of the DAO interface, Spring will automatically find the class under it -->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.CollabCraft.dao"/>
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"></property>
+    </bean>
+
+    <bean id="UserInfoService" class="com.CollabCraft.service.Impl.UserInfoServiceImpl"></bean>
+    <bean id="DocumentService" class="com.CollabCraft.service.Impl.DocumentServiceImpl"></bean>
+    <bean id="CooperateService" class="com.CollabCraft.service.Impl.CooperateServiceImpl"></bean>
+    <bean id="InviteInfoService" class="com.CollabCraft.service.Impl.InviteInfoServiceImpl"></bean>
+
+    <!--Configure mail interface -->
+    <bean id="javaMailSender" class="org.springframework.mail.javamail.JavaMailSenderImpl">
+        <property name="host" value="${mail.smtp.host}" />
+        <property name="username" value="${mail.smtp.username}" />
+        <property name="password" value="${mail.smtp.password}" />
+        <property name="defaultEncoding" value="${mail.smtp.defaultEncoding}" />
+        <property name="port" value="${mail.smtp.port}"/>
+        <property name="javaMailProperties">
+            <props>
+                <prop key="mail.smtp.starttls.enable">${mail.smtp.starttls.enable}</prop>
+                <prop key="mail.smtp.auth">${mail.smtp.auth}</prop>
+                <prop key="mail.smtp.timeout">${mail.smtp.timeout}</prop>
+            </props>
+        </property>
+    </bean>
+
+    <!-- freemarker -->
+    <bean id="configuration"
+          class="org.springframework.ui.freemarker.FreeMarkerConfigurationFactoryBean">
+        <property name="templateLoaderPath" value="classpath:/freemarker" />
+        <!-- Set FreeMarker environment variables -->
+        <property name="freemarkerSettings">
+            <props>
+                <prop key="default_encoding">UTF-8</prop>
+            </props>
+        </property>
+    </bean>
+    <!--Transaction Management-->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+    <!-- jedis connection pool configuration -->
+    <bean id="poolConfig" class="redis.clients.jedis.JedisPoolConfig">
+        <property name="maxIdle" value="${redis.maxIdle}"/>
+        <property name="maxWaitMillis" value="${redis.maxWait}"/>
+        <property name="testOnBorrow" value="${redis.testOnBorrow}"/>
+    </bean>
+    <!-- redis connection factory -->
+    <bean id="connectionFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory">
+        <property name="poolConfig" ref="poolConfig"/>
+        <property name="port" value="${redis.port}"/>
+        <property name="hostName" value="${redis.host}"/>
+        <property name="password" value="${redis.password}"/>
+        <property name="timeout" value="${redis.timeout}"></property>
+    </bean>
+
+    <bean id="redisTemplate" class="org.springframework.data.redis.core.RedisTemplate">
+        <property name="connectionFactory" ref="connectionFactory"/>
+        <property name="keySerializer">
+            <bean class="org.springframework.data.redis.serializer.StringRedisSerializer"/>
+        </property>
+        <property name="valueSerializer">
+            <bean class="org.springframework.data.redis.serializer.JdkSerializationRedisSerializer"/>
+        </property>
+    </bean>
+
+    <!-- Cache interceptor configuration -->
+    <bean id="methodCacheInterceptor" class="com.CollabCraft.interceptor.MethodCacheInterceptor">
+        <property name="redisUtil" ref="redisUtil"/>
+        <property name="defaultCacheExpireTime" value="${defaultCacheExpireTime}"/>
+        <!-- List of class names to disable caching -->
+        <property name="targetNamesList">
+            <list>
+                <value>com.CollabCraft.service.Impl.CooperateServiceImpl</value>
+                <value>com.CollabCraft.service.Impl.UserInfoServiceImpl</value>
+
+            </list>
+        </property>
+        <!-- List of method names to disable caching -->
+        <property name="methodNamesList">
+            <list>
+                <value>com.CollabCraft.service.Impl.DocumentServiceImpl.getDocmentbyKeyword</value>
+                <value>com.CollabCraft.service.Impl.DocumentServiceImpl.orderDocIDbyLastModifyTime</value>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="redisUtil" class="com.CollabCraft.utils.RedisUtil">
+        <property name="redisTemplate" ref="redisTemplate"/>
+    </bean>
+
+    <!--Configuring aspect interception method -->
+    <aop:config proxy-target-class="true">
+        <aop:pointcut id="controllerMethodPointcut" expression="
+         execution(* com.CollabCraft.service.Impl.*.get*(..))"/>
+        <aop:advisor advice-ref="methodCacheInterceptor" pointcut-ref="controllerMethodPointcut"/>
+    </aop:config>
+    <tx:annotation-driven transaction-manager="transactionManager"/>
+
+</beans>
